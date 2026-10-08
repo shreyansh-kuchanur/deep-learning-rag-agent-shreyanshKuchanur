@@ -88,29 +88,30 @@ generation_node  [END]   ← hallucination guard fires here
         The compiled graph is thread-safe and can be shared across
         multiple Streamlit sessions via st.cache_resource.
         """
-        # TODO: implement
-        # 1. graph = StateGraph(AgentState)
-        #
-        # 2. Add nodes:
-        #    graph.add_node("query_rewrite", query_rewrite_node)
-        #    graph.add_node("retrieval", retrieval_node)
-        #    graph.add_node("generation", generation_node)
-        #
-        # 3. Add edges:
-        #    graph.add_edge(START, "query_rewrite")
-        #    graph.add_edge("query_rewrite", "retrieval")
-        #
-        # 4. Add conditional edge from retrieval:
-        #    graph.add_conditional_edges(
-        #        "retrieval",
-        #        should_retry_retrieval,
-        #        {"generate": "generation", "end": END}
-        #    )
-        #
-        # 5. graph.add_edge("generation", END)
-        #
-        # 6. return graph.compile(checkpointer=self._checkpointer)
-        raise NotImplementedError
+        # 1. Create the graph around our state type
+        graph = StateGraph(AgentState)
+
+        # 2. Add the three steps (nodes)
+        graph.add_node("query_rewrite", query_rewrite_node)
+        graph.add_node("retrieval", retrieval_node)
+        graph.add_node("generation", generation_node)
+
+        # 3. Connect them in order
+        graph.add_edge(START, "query_rewrite")
+        graph.add_edge("query_rewrite", "retrieval")
+
+        # 4. After retrieval, either generate an answer or stop
+        graph.add_conditional_edges(
+            "retrieval",
+            should_retry_retrieval,
+            {"generate": "generation", "end": END},
+        )
+
+        # 5. Generation is the last step
+        graph.add_edge("generation", END)
+
+        # 6. Compile with memory so conversations are remembered
+        return graph.compile(checkpointer=self._checkpointer)
 
 
 @lru_cache(maxsize=1)
